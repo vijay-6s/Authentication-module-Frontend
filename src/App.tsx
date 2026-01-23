@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import { authClient } from "./lib/auth-client";
 
+type Provider = "google" | "microsoft" | "zoho";
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -27,14 +29,25 @@ export default function App() {
     }
   };
 
-  /* -------------------- OAuth -------------------- */
-  const signIn = async (provider: "google" | "microsoft") => {
-    await authClient.signIn.social({
-      provider,
-      callbackURL: inviteId
-        ? `http://localhost:5173?invite=${inviteId}`
-        : "http://localhost:5173",
-    });
+  /* -------------------- Sign In -------------------- */
+  const signIn = async (provider: Provider) => {
+    const callbackURL = inviteId
+      ? `http://localhost:5173?invite=${inviteId}`
+      : "http://localhost:5173";
+
+    if (provider === "zoho") {
+      // Generic OAuth (Zoho)
+      await authClient.signIn.oauth2({
+        providerId: "zoho", // MUST match backend providerId
+        callbackURL,
+      });
+    } else {
+      // OIDC providers (Google / Microsoft)
+      await authClient.signIn.social({
+        provider,
+        callbackURL,
+      });
+    }
   };
 
   const signOut = async () => {
@@ -73,7 +86,7 @@ export default function App() {
   };
 
   const callProtectedApi = async () => {
-    const res = await fetch("http://localhost:8000/api/protected", {
+    const res = await fetch("http://localhost:3000/api/protected", {
       headers: { Authorization: `Bearer ${jwt}` },
     });
     setApiResponse(await res.json());
@@ -85,7 +98,7 @@ export default function App() {
 
   const createOrg = async () => {
     setStatus("Creating organization...");
-    const res = await fetch("http://localhost:8000/organization/create", {
+    const res = await fetch("http://localhost:3000/organization/create", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -109,7 +122,10 @@ export default function App() {
         <>
           <h3>You were invited to an organization</h3>
           <button onClick={() => signIn("google")}>Sign in with Google</button>
-          <button onClick={() => signIn("microsoft")}>Sign in with Microsoft</button>
+          <button onClick={() => signIn("microsoft")}>
+            Sign in with Microsoft
+          </button>
+          <button onClick={() => signIn("zoho")}>Sign in with Zoho</button>
         </>
       )}
 
@@ -124,26 +140,31 @@ export default function App() {
       {!inviteId && !session?.user && (
         <>
           <button onClick={() => signIn("google")}>Sign in with Google</button>
-          <button onClick={() => signIn("microsoft")}>Sign in with Microsoft</button>
+          <button onClick={() => signIn("microsoft")}>
+            Sign in with Microsoft
+          </button>
+          <button onClick={() => signIn("zoho")}>Sign in with Zoho</button>
         </>
       )}
 
       {/* DASHBOARD */}
       {session?.user && !inviteId && (
         <>
-          <p>Logged in as <b>{session.user.email}</b></p>
+          <p>
+            Logged in as <b>{session.user.email}</b>
+          </p>
           <button onClick={signOut}>Sign out</button>
 
           <h3>Create Organization</h3>
           <input
             placeholder="Organization name"
             value={orgName}
-            onChange={e => setOrgName(e.target.value)}
+            onChange={(e) => setOrgName(e.target.value)}
           />
           <input
             placeholder="Invite email"
             value={inviteEmail}
-            onChange={e => setInviteEmail(e.target.value)}
+            onChange={(e) => setInviteEmail(e.target.value)}
           />
           <button onClick={createOrg}>Create</button>
 
@@ -151,7 +172,11 @@ export default function App() {
           <button onClick={fetchJwt}>Get JWT</button>
           {jwt && <pre>{jwt}</pre>}
 
-          {jwt && <button onClick={callProtectedApi}>Call Protected API</button>}
+          {jwt && (
+            <button onClick={callProtectedApi}>
+              Call Protected API
+            </button>
+          )}
         </>
       )}
 
