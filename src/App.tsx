@@ -4,6 +4,8 @@ import { authClient } from "./lib/auth-client";
 
 type Provider = "google" | "microsoft" | "zoho";
 
+const API_BASE = "http://localhost:3000";
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,7 @@ export default function App() {
   const checkSession = async () => {
     try {
       const res = await authClient.getSession();
-      setSession(res.data);
+      setSession(res.data ?? null);
     } catch {
       setSession(null);
     } finally {
@@ -31,23 +33,15 @@ export default function App() {
 
   /* -------------------- Sign In -------------------- */
   const signIn = async (provider: Provider) => {
+
     const callbackURL = inviteId
       ? `http://localhost:5173?invite=${inviteId}`
       : "http://localhost:5173";
 
-    if (provider === "zoho") {
-      // Generic OAuth (Zoho)
-      await authClient.signIn.oauth2({
-        providerId: "zoho", // MUST match backend providerId
-        callbackURL,
-      });
-    } else {
-      // OIDC providers (Google / Microsoft)
-      await authClient.signIn.social({
-        provider,
-        callbackURL,
-      });
-    }
+    await authClient.signIn.social({
+      provider,
+      callbackURL,
+    });
   };
 
   const signOut = async () => {
@@ -61,7 +55,7 @@ export default function App() {
     setStatus("Accepting invitation...");
 
     const res = await fetch(
-      "http://localhost:8000/api/auth/organization/accept-invitation",
+      `${API_BASE}/api/auth/organization/accept-invitation`,
       {
         method: "POST",
         credentials: "include",
@@ -86,7 +80,7 @@ export default function App() {
   };
 
   const callProtectedApi = async () => {
-    const res = await fetch("http://localhost:3000/api/protected", {
+    const res = await fetch(`${API_BASE}/api/protected`, {
       headers: { Authorization: `Bearer ${jwt}` },
     });
     setApiResponse(await res.json());
@@ -98,7 +92,8 @@ export default function App() {
 
   const createOrg = async () => {
     setStatus("Creating organization...");
-    const res = await fetch("http://localhost:3000/organization/create", {
+
+    const res = await fetch(`${API_BASE}/organization/create`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
