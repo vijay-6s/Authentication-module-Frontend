@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import { authClient } from "./lib/auth-client";
 
-type Provider = "google" | "microsoft" | "zoho";
-
 const API_BASE = "http://localhost:3000";
 
 export default function App() {
@@ -12,6 +10,9 @@ export default function App() {
   const [jwt, setJwt] = useState<string | null>(null);
   const [apiResponse, setApiResponse] = useState<any>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const inviteId = new URLSearchParams(window.location.search).get("invite");
 
@@ -32,7 +33,7 @@ export default function App() {
   };
 
   /* -------------------- Sign In -------------------- */
-  const signIn = async (provider: Provider) => {
+  const signIn = async (provider: "google" | "microsoft" | "zoho") => {
 
     const callbackURL = inviteId
       ? `http://localhost:5173?invite=${inviteId}`
@@ -42,6 +43,26 @@ export default function App() {
       provider,
       callbackURL,
     });
+  };
+
+  /* -------------------- Magic Link Sign In -------------------- */
+  const sendMagicLink = async () => {
+    setStatus("Sending magic link...");
+    
+    const { error } = await authClient.signIn.magicLink({
+      email,
+      name,
+      callbackURL: inviteId 
+        ? `http://localhost:5173?invite=${inviteId}`
+        : "http://localhost:5173",
+    });
+
+    if (error) {
+      setStatus(`Error: ${error.message}`);
+    } else {
+      setMagicLinkSent(true);
+      setStatus("Magic link sent! Check your email.");
+    }
   };
 
   const signOut = async () => {
@@ -116,11 +137,36 @@ export default function App() {
       {inviteId && !session?.user && (
         <>
           <h3>You were invited to an organization</h3>
+          
+          <h4>Sign in with OAuth</h4>
           <button onClick={() => signIn("google")}>Sign in with Google</button>
           <button onClick={() => signIn("microsoft")}>
             Sign in with Microsoft
           </button>
           <button onClick={() => signIn("zoho")}>Sign in with Zoho</button>
+
+          <h4>Or use Magic Link</h4>
+          {!magicLinkSent ? (
+            <>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button onClick={sendMagicLink} disabled={!email}>
+                Send Magic Link
+              </button>
+            </>
+          ) : (
+            <p>✅ Check your email for the magic link!</p>
+          )}
         </>
       )}
 
@@ -134,11 +180,35 @@ export default function App() {
       {/* LOGIN */}
       {!inviteId && !session?.user && (
         <>
+          <h3>Sign in with OAuth</h3>
           <button onClick={() => signIn("google")}>Sign in with Google</button>
           <button onClick={() => signIn("microsoft")}>
             Sign in with Microsoft
           </button>
           <button onClick={() => signIn("zoho")}>Sign in with Zoho</button>
+
+          <h3>Or sign in with Magic Link</h3>
+          {!magicLinkSent ? (
+            <>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button onClick={sendMagicLink} disabled={!email}>
+                Send Magic Link
+              </button>
+            </>
+          ) : (
+            <p>✅ Check your email for the magic link!</p>
+          )}
         </>
       )}
 
